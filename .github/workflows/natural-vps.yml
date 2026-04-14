@@ -1,0 +1,44 @@
+name: Natural VPS - Windows - natural-forest_la740o-8fdefd
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  vps:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Windows VPS
+      run: |
+        Write-Host "🌿 Natural VPS Starting..."
+        
+        # Enable RDP
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        
+        # Create user
+        $password = ConvertTo-SecureString "Hn0589077331@" -AsPlainText -Force
+        New-LocalUser -Name "forest_la740o" -Password $password -FullName "forest_la740o"
+        Add-LocalGroupMember -Group "Administrators" -Member "forest_la740o"
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "forest_la740o"
+        
+        # Install Tailscale
+        Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
+        Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet" -Wait
+        tailscale up --authkey=tskey-auth-ksjoEVJCe221CNTRL-Wnk3i3wzC2Twxf7rpm7D2TqH4t4PPvwT9 --hostname=natural-forest_la740o-8fdefd
+        
+        # Get IP
+        $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like "*Ethernet*" } | Select-Object -First 1).IPAddress
+        Write-Host "IP: $ip"
+    
+    - name: Keep Alive (6 hours)
+      run: |
+        for ($i=1; $i -le 360; $i++) {
+          Write-Host "Runtime: $i/360 minutes"
+          Start-Sleep -Seconds 60
+        }
